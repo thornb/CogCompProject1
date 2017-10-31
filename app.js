@@ -89,32 +89,7 @@ if (process.env.VCAP_SERVICES) {
     version_date: process.env.discovery_version
   });
 
-  var version_date = process.env.discovery_version;
-  var environment_id = process.env.environment_id;
-  var collection_id = process.env.collection_id;  
-
-  // discovery.query({
-  //   version_date: version_date,
-  //   environment_id: environment_id,
-  //   collection_id: collection_id,
-  //   query: "Breast Cancer",
-  //   count: 5
-  //   },
-  //   (err, data) => {
-  //     if (err) {
-  //       console.log("Error: ");
-  //       console.log(err);
-  //     }
-  //     console.log("data: ");
-  //     console.log(data);
-      
-  //   }
-  // );
-
-
-
-
-  intentConfidence = .75;
+  intentConfidence = 1.1;
 }
 
 console.log("Confidence Threshold: " + intentConfidence);
@@ -167,57 +142,58 @@ app.post('/api/message', function (req, res) {
     return deferred.promise;
 
   })().then(function (data) {
-    
-    console.log("New data");
-    console.log(data);
+    console.log(data)
+    //if (data.input.text !== "start conversation" && data.intents.length > 0 && data.intents[0].confidence < intentConfidence) {
+    console.log('-----------')
 
-    console.log("responce message");
-    console.log(data.output.text);
-    console.log(data.output.text == "I\'m sorry I don\'t understand that, can you rephrase?");
+    console.log("TESTING!!!");
 
-    if ((data.output.text == "I\'m sorry I don\'t understand that, can you rephrase?") || (data.input.text !== "start conversation" && data.intents.length > 0 && data.intents[0].confidence < intentConfidence)) {
-      // return discovery data
-
-
+    //@CHANGE
+    // if(data.output.nodes_visited == 'Machine Learning'){
+    console.log(data.intents[0].intent);
+    //@Add more intentions here
+    if(data.intents[0].intent == 'MachineLearning'){
+    // return discovery data
       var response = {
         "input": {"text": req.body.input.text},
         "context": data.context,
         "output": {"text": []}
       };
+    console.log('here')
 
-      console.log("before query");
-
-      var version = process.env.discovery_version;
+      var version_date = process.env.discovery_version;
       var environment_id = process.env.environment_id;
       var collection_id = process.env.collection_id;
-
-      var input = req.body.input.text;
-      console.log("input: " + input);
-
-
+    if(data.entities[0].entity == 'Greeting'){
+    return res.json(data);
+    }
+    console.log('Discovery query is: ')
+    console.log(req.body.input.text)
       discovery.query({
           version_date: version_date,
           environment_id: environment_id,
           collection_id: collection_id,
-          natural_language_query: input,
-          passages: true,
-          count: 5
+          natural_language_query: req.body.input.text,
+          count: 1,
+      passages: true
         },
         (err, data) => {
-          if (err) {
-            console.log("Error: ");
-            console.log(err);
-            return res.status(err.code || 500).json(err);
-          }
+      // var fs = require('fs');
+    //   fs.writeFile("/pytest/virtual agent/infotest.txt", data.passages, function(err) {
+    //   if(err) {
+    //     return console.log(err);
+    //   }
 
-          // console.log("Data");
-          // console.log(data);
-          if (data.passages.length > 0) {
+    //   console.log("The file was saved!");
+    // });
+
+
+      if (data.passages.length > 0) {
 
 
             var passage_list = [];
 
-            for(var i = 0; i < data.passages.length; i++) {
+            for(var i = 0; i < 3; i++) {
 
               // console.log(data.passages[i].passage_text);
 
@@ -254,8 +230,8 @@ app.post('/api/message', function (req, res) {
 
             }
             
-            var final_str = "";
-            for (var i = 0; i < passage_list.length; i++){
+            var final_str = "Here are some relevant results retrieved from the Watson Discovery service: &#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;&#x2000;";
+            for (var i = 0; i < 3; i++){
               final_str += passage_list[i];
             }
             console.log(final_str); 
@@ -264,46 +240,33 @@ app.post('/api/message', function (req, res) {
 
 
 
+          }
+
+      // console.log("ran query")
+      // console.log(err)
+      // console.log(data.passages)
+      // console.log(data.passages[0].passage_text)
+      
+      // response.output.text = data.passages[0].passage_text
+      return res.json(response)
+      
+          if (err) {
+            console.log("Error: ");
+            console.log(err);
+            return res.status(err.code || 500).json(err);
+          }
+
+          if (data.results.length > 0) {
+            for(var i = 0; i < data.results.length; i++) {
+              response.output.text.push(data.results[i]); // keep this use-case agnostic;
+            }
           } else {
-            response.output.text = "I cannot find an answer to your question.";
+            response.output.text.push("I cannot find an answer to your question.");
           }
 
           return res.json(response);
-
-          
         }
       );
-
-      // discovery.query({
-      //     version_date: version_date,
-      //     environment_id: environment_id,
-      //     collection_id: collection_id,
-      //     query: input,
-      //     count: 5
-      //   },
-      //   (err, data) => {
-      //     console.log("in responce");
-      //     console.log(data);
-      //     if (err) {
-      //       console.log("discovery error!");
-      //       console.log("Error: ");
-      //       console.log(err);
-      //       return res.status(err.code || 500).json(err);
-      //     }
-
-      //     console.log(data);
-
-      //     if (data.results.length > 0) {
-      //       for(var i = 0; i < data.results.length; i++) {
-      //         response.output.text.push(data.results[i]); // keep this use-case agnostic;
-      //       }
-      //     } else {
-      //       response.output.text.push("I cannot find an answer to your question.");
-      //     }
-
-      //     return res.json(response);
-      //   }
-      // );
     } else {
       // return conversation data
       return res.json(data);
